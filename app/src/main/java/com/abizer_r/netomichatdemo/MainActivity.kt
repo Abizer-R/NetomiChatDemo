@@ -87,6 +87,7 @@ class MainActivity : ComponentActivity() {
                     ChatScreen(
                         modifier = Modifier.padding(innerPadding),
                         state = state,
+                        events = viewModel.events,
                         onSendClicked = viewModel::onSendMessage,
                         onConversationClicked = viewModel::onConversationSelected,
                         onOnlineToggle = viewModel::onOnlineToggle

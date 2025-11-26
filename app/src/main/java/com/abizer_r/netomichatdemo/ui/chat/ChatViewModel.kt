@@ -3,11 +3,17 @@ package com.abizer_r.netomichatdemo.ui.chat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.abizer_r.netomichatdemo.domain.repo.ChatRepository
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.util.UUID
+
+sealed class UiEvent {
+    data class ShowSnackbar(val message: String) : UiEvent()
+}
 
 class ChatViewModel(
     private val repository: ChatRepository
@@ -18,7 +24,9 @@ class ChatViewModel(
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState
 
-    // TODO: Wire the send/queue logic
+    private val _events = MutableSharedFlow<UiEvent>(extraBufferCapacity = 16)
+    val events: SharedFlow<UiEvent> = _events
+
     private val _isOnline = MutableStateFlow(true)
 
     init {
@@ -36,7 +44,7 @@ class ChatViewModel(
 
                 val currState = _uiState.value
 
-                val activeId = _uiState.value.activeConversationId
+                val activeId = currState.activeConversationId
                     ?: conversations.firstOrNull()?.id
 
                 val activeMessages = conversations
@@ -67,6 +75,13 @@ class ChatViewModel(
                 )
             }.collect { newState ->
                 _uiState.value = newState
+            }
+
+            // Collect repository error messages and convert to UiEvents
+            viewModelScope.launch {
+                repository.errorEvents.collect { msg ->
+                    _events.emit(UiEvent.ShowSnackbar(msg))
+                }
             }
         }
     }

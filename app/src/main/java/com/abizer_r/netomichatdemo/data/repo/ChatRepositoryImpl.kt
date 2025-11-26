@@ -12,8 +12,10 @@ import com.abizer_r.netomichatdemo.domain.repo.ChatRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -29,6 +31,9 @@ class ChatRepositoryImpl(
 
     override val connectionState: StateFlow<ConnectionState> = socketClient.connectionState
 
+    private val _errorEvents = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    override val errorEvents = _errorEvents.asSharedFlow()
+
     // in-memory map for quick updates
     private val conversationMap = LinkedHashMap<String, ChatConversation>()
 
@@ -37,12 +42,25 @@ class ChatRepositoryImpl(
     private var isOnline: Boolean = true
 
     override suspend fun start(clientId: String) {
-        socketClient.connect()
+        try {
+            socketClient.connect()
+        } catch (t: Throwable) {
+            _errorEvents.emit("Failed to connect to server: ${t.message ?: "Unknown error"}")
+        }
 
         // Collect incoming events
         scope.launch(ioDispatcher) {
             socketClient.events.collectLatest { payload ->
                 handleIncomingPayload(payload = payload, clientId = clientId)
+            }
+        }
+
+        // Observe connection state for errors (optional, but nice)
+        scope.launch(ioDispatcher) {
+            connectionState.collectLatest { state ->
+                if (state is ConnectionState.Error) {
+                    _errorEvents.emit("Connection error: ${state.message ?: "Unknown"}")
+                }
             }
         }
     }
@@ -79,6 +97,7 @@ class ChatRepositoryImpl(
         if (!isOnline) {
             // queue and exit; will be retried when we go online
             pendingQueue.add(QueuedMessage(userPayload, messageId))
+            _errorEvents.tryEmit("You are offline. Message queued.")
             return
         }
 
@@ -94,6 +113,7 @@ class ChatRepositoryImpl(
             t.printStackTrace()
             pendingQueue.add(QueuedMessage(userPayload, messageId))
             updateMessageStatus(userPayload.conversationId, messageId, MessageStatus.QUEUED)
+            _errorEvents.emit("Failed to send. Message queued for retry.")
         }
     }
 
@@ -101,9 +121,17 @@ class ChatRepositoryImpl(
         val wentOnline = !this.isOnline && isOnline
         this.isOnline = isOnline
 
+        if (!isOnline) {
+            // Just went offline
+            scope.launch {
+                _errorEvents.emit("No internet connection. Messages will be queued.")
+            }
+        }
+
         if (wentOnline) {
             // When we go from offline -> online, retry pending messages
             scope.launch(ioDispatcher) {
+                _errorEvents.emit("Back online. Retrying queued messages...")
                 retryPending()
             }
         }
@@ -131,6 +159,7 @@ class ChatRepositoryImpl(
                     messageId = item.messageId,
                     status = MessageStatus.FAILED
                 )
+                _errorEvents.emit("Retry failed for a message. Will try again later.")
             }
         }
     }
