@@ -47,7 +47,8 @@ class ChatViewModel(
                             id = it.id,
                             text = it.text,
                             isMine = it.isMine,
-                            isBot = it.isBot
+                            isBot = it.isBot,
+                            status = it.status
                         )
                     }.orEmpty()
 
@@ -82,5 +83,6 @@ class ChatViewModel(
 
     fun onOnlineToggle(isOnline: Boolean) {
         _isOnline.value = isOnline
+        repository.onNetworkStatusChanged(isOnline)
     }
 }

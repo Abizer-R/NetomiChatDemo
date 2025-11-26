@@ -1,6 +1,7 @@
 package com.abizer_r.netomichatdemo.ui.chat
 
 import com.abizer_r.netomichatdemo.data.socket.ConnectionState
+import com.abizer_r.netomichatdemo.domain.model.MessageStatus
 
 data class ChatUiState(
     val connectionState: ConnectionState = ConnectionState.Disconnected,
@@ -22,5 +23,6 @@ data class ChatMessageItemUi(
     val id: String,
     val text: String,
     val isMine: Boolean,
-    val isBot: Boolean
+    val isBot: Boolean,
+    val status: MessageStatus
 )

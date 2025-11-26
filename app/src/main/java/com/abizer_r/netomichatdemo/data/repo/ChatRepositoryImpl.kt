@@ -29,11 +29,17 @@ class ChatRepositoryImpl(
 
     override val connectionState: StateFlow<ConnectionState> = socketClient.connectionState
 
+    // in-memory map for quick updates
     private val conversationMap = LinkedHashMap<String, ChatConversation>()
+
+    private val pendingQueue = mutableListOf<QueuedMessage>()
+
+    private var isOnline: Boolean = true
 
     override suspend fun start(clientId: String) {
         socketClient.connect()
 
+        // Collect incoming events
         scope.launch(ioDispatcher) {
             socketClient.events.collectLatest { payload ->
                 handleIncomingPayload(payload = payload, clientId = clientId)
@@ -55,20 +61,91 @@ class ChatRepositoryImpl(
             timestamp = now
         )
 
-        socketClient.send(userPayload)
+        val messageId = generateMessageId(userPayload)
+        val initialStatus = if (isOnline) MessageStatus.SENDING else MessageStatus.QUEUED
 
-        // 2) bot reply
-        val botPayload = buildBotReply(userPayload)
-        socketClient.send(botPayload)
+        // Add local message immediately (optimistic UI)
+        val localMessage = ChatMessage(
+            id = messageId,
+            conversationId = userPayload.conversationId,
+            text = userPayload.text,
+            timestamp = userPayload.timestamp,
+            isMine = true,
+            isBot = false,
+            status = initialStatus
+        )
+        upsertMessageLocal(localMessage)
+
+        if (!isOnline) {
+            // queue and exit; will be retried when we go online
+            pendingQueue.add(QueuedMessage(userPayload, messageId))
+            return
+        }
+
+        // If online, attempt to send now
+        try {
+            socketClient.send(userPayload)
+            // Do NOT change status here, let server echo update to SENT
+            // Generate bot reply only once we think the user message has gone out
+            val botPayload = buildBotReply(userPayload)
+            socketClient.send(botPayload)
+        } catch (t: Throwable) {
+            // sending failed; mark as queued
+            t.printStackTrace()
+            pendingQueue.add(QueuedMessage(userPayload, messageId))
+            updateMessageStatus(userPayload.conversationId, messageId, MessageStatus.QUEUED)
+        }
+    }
+
+    override fun onNetworkStatusChanged(isOnline: Boolean) {
+        val wentOnline = !this.isOnline && isOnline
+        this.isOnline = isOnline
+
+        if (wentOnline) {
+            // When we go from offline -> online, retry pending messages
+            scope.launch(ioDispatcher) {
+                retryPending()
+            }
+        }
+    }
+
+
+    private suspend fun retryPending() {
+        // Iterate over a copy to avoid concurrent modification issues
+        val iterator = pendingQueue.iterator()
+        while (iterator.hasNext()) {
+            val item = iterator.next()
+            try {
+                socketClient.send(item.payload)
+                // Remove from queue on success
+                iterator.remove()
+                // Let server echo update the message to SENT via handleIncomingPayload
+
+                // Also send bot reply now that the user message actually went out
+                val botPayload = buildBotReply(item.payload)
+                socketClient.send(botPayload)
+            } catch (t: Throwable) {
+                // Mark as failed; keep in queue for future attempts
+                updateMessageStatus(
+                    conversationId = item.payload.conversationId,
+                    messageId = item.messageId,
+                    status = MessageStatus.FAILED
+                )
+            }
+        }
     }
 
     private fun handleIncomingPayload(payload: ChatPayload, clientId: String) {
         val isBot = payload.senderId == BOT_ID || payload.type == "bot_message"
         val isMine = payload.senderId == clientId && !isBot
 
-        val messageId = "${payload.senderId}-${payload.timestamp}-${abs(payload.text.hashCode())}"
+        val messageId = generateMessageId(payload)
 
-        val message = ChatMessage(
+        val existingConv = conversationMap[payload.conversationId]
+        val existingMessages = existingConv?.messages.orEmpty()
+        val existingIndex = existingMessages.indexOfFirst { it.id == messageId }
+
+        val incoming = ChatMessage(
             id = messageId,
             conversationId = payload.conversationId,
             text = payload.text,
@@ -78,20 +155,81 @@ class ChatRepositoryImpl(
             status = MessageStatus.SENT
         )
 
-        val existing = conversationMap[payload.conversationId]
-        val updatedConversation = existing?.copy(
-            lastMessage = message,
-            messages = existing.messages + message
+        val newMessages = if (existingIndex >= 0) {
+            existingMessages.toMutableList().apply {
+                this[existingIndex] = incoming
+            }
+        } else {
+            existingMessages + incoming
+        }
+
+        val updatedConversation = existingConv?.copy(
+            lastMessage = incoming,
+            messages = newMessages
         )
             ?: ChatConversation(
                 id = payload.conversationId,
-                title = "Bot chat", // can later be dynamic / multiple bots
-                lastMessage = message,
-                messages = listOf(message)
+                title = "Bot chat", // can be customized later
+                lastMessage = incoming,
+                messages = newMessages
             )
 
         conversationMap[payload.conversationId] = updatedConversation
         _conversations.value = conversationMap.values.toList()
+    }
+
+    private fun upsertMessageLocal(message: ChatMessage) {
+        val existingConv = conversationMap[message.conversationId]
+        val existingMessages = existingConv?.messages.orEmpty()
+        val existingIndex = existingMessages.indexOfFirst { it.id == message.id }
+
+        val newMessages = if (existingIndex >= 0) {
+            existingMessages.toMutableList().apply {
+                this[existingIndex] = message
+            }
+        } else {
+            existingMessages + message
+        }
+
+        val updatedConversation = existingConv?.copy(
+            lastMessage = message,
+            messages = newMessages
+        )
+            ?: ChatConversation(
+                id = message.conversationId,
+                title = "Bot chat",
+                lastMessage = message,
+                messages = newMessages
+            )
+
+        conversationMap[message.conversationId] = updatedConversation
+        _conversations.value = conversationMap.values.toList()
+    }
+
+    private fun updateMessageStatus(
+        conversationId: String,
+        messageId: String,
+        status: MessageStatus
+    ) {
+        val conv = conversationMap[conversationId] ?: return
+        val messages = conv.messages
+        val idx = messages.indexOfFirst { it.id == messageId }
+        if (idx < 0) return
+
+        val updatedMessage = messages[idx].copy(status = status)
+        val updatedMessages = messages.toMutableList().apply {
+            this[idx] = updatedMessage
+        }
+
+        conversationMap[conversationId] = conv.copy(
+            lastMessage = updatedMessages.lastOrNull(),
+            messages = updatedMessages
+        )
+        _conversations.value = conversationMap.values.toList()
+    }
+
+    private fun generateMessageId(payload: ChatPayload): String {
+        return "${payload.senderId}-${payload.timestamp}-${abs(payload.text.hashCode())}"
     }
 
     private fun buildBotReply(userMessage: ChatPayload): ChatPayload {
@@ -114,4 +252,9 @@ class ChatRepositoryImpl(
             timestamp = System.currentTimeMillis()
         )
     }
+
+    private data class QueuedMessage(
+        val payload: ChatPayload,
+        val messageId: String
+    )
 }

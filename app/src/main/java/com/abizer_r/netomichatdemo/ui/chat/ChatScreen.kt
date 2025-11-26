@@ -2,6 +2,7 @@ package com.abizer_r.netomichatdemo.ui.chat
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -14,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import com.abizer_r.netomichatdemo.data.socket.ConnectionState
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material3.Switch
+import com.abizer_r.netomichatdemo.domain.model.MessageStatus
 
 @Composable
 fun ChatScreen(
@@ -73,7 +75,7 @@ fun ChatScreen(
                     .padding(vertical = 4.dp)
             ) {
                 Text(
-                    text = "No internet connection (simulated). Messages will be handled offline.",
+                    text = "No internet connection (simulated). Messages will be queued and retried.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -114,13 +116,13 @@ fun ChatScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // Messages for active conversation
+        // Messages
         Text("Messages:", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(4.dp))
 
         LazyColumn(
-            modifier = Modifier
-                .weight(1f)
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(state.messages, key = { it.id }) { msg ->
                 val prefix = when {
@@ -128,7 +130,18 @@ fun ChatScreen(
                     msg.isMine -> "Me:"
                     else -> "User:"
                 }
-                Text("$prefix ${msg.text}")
+                Text("$prefix ${msg.text}", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(4.dp))
+
+                val statusSuffix = when (msg.status) {
+                    MessageStatus.SENDING -> "(sending…)"
+                    MessageStatus.QUEUED -> "(queued)"
+                    MessageStatus.FAILED -> "(failed)"
+                    MessageStatus.SENT -> "(sent)"
+                }
+
+                // TODO: use different color for different status
+                Text(statusSuffix, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(4.dp))
             }
         }

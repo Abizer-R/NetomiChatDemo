@@ -10,4 +10,6 @@ interface ChatRepository {
 
     suspend fun start(clientId: String)
     suspend fun sendUserMessage(text: String, clientId: String)
+
+    fun onNetworkStatusChanged(isOnline: Boolean)
 }
