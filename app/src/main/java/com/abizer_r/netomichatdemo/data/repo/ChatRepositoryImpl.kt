@@ -1,5 +1,6 @@
 package com.abizer_r.netomichatdemo.data.repo
 
+import androidx.lifecycle.viewModelScope
 import com.abizer_r.netomichatdemo.data.socket.BOT_ID
 import com.abizer_r.netomichatdemo.data.socket.CHANNEL_ID
 import com.abizer_r.netomichatdemo.data.socket.ChatPayload
@@ -9,6 +10,7 @@ import com.abizer_r.netomichatdemo.domain.model.ChatConversation
 import com.abizer_r.netomichatdemo.domain.model.ChatMessage
 import com.abizer_r.netomichatdemo.domain.model.MessageStatus
 import com.abizer_r.netomichatdemo.domain.repo.ChatRepository
+import com.abizer_r.netomichatdemo.ui.chat.UiEvent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +54,12 @@ class ChatRepositoryImpl(
         scope.launch(ioDispatcher) {
             socketClient.events.collectLatest { payload ->
                 handleIncomingPayload(payload = payload, clientId = clientId)
+            }
+        }
+
+        scope.launch(ioDispatcher) {
+            socketClient.errorEvents.collectLatest { payload ->
+                _errorEvents.emit("$payload")
             }
         }
 

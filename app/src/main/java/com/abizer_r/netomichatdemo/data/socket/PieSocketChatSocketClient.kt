@@ -26,6 +26,9 @@ class PieSocketChatSocketClient(
     private val _events = MutableSharedFlow<ChatPayload>(extraBufferCapacity = 64)
     override val events = _events.asSharedFlow()
 
+    private val _errorEvents = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    override val errorEvents = _errorEvents.asSharedFlow()
+
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     override val connectionState = _connectionState.asStateFlow()
 
@@ -60,6 +63,15 @@ class PieSocketChatSocketClient(
                     Log.d(LOG_TAG, "system:connected: $event")
                     scope.launch {
                         _connectionState.value = ConnectionState.Connected
+                    }
+                }
+            })
+
+            joinedChannel.listen("system:error", object : PieSocketEventListener() {
+                override fun handleEvent(event: PieSocketEvent) {
+                    Log.d(LOG_TAG, "system:error: $event")
+                    scope.launch {
+                        _errorEvents.emit(event.data)
                     }
                 }
             })

@@ -48,7 +48,8 @@ fun ChatScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        contentWindowInsets = WindowInsets.ime
     ) { paddingValues ->
 
         var inputText by remember { mutableStateOf("") }
@@ -185,7 +186,6 @@ fun ChatScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .imePadding()
             ) {
                 OutlinedTextField(
                     modifier = Modifier.weight(1f),

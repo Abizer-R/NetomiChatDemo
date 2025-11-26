@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 interface ChatSocketClient {
     val events: Flow<ChatPayload>
+    val errorEvents: Flow<String>
     val connectionState: StateFlow<ConnectionState>
 
     suspend fun connect()
