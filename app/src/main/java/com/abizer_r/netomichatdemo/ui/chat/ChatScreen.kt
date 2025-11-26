@@ -13,13 +13,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.abizer_r.netomichatdemo.data.socket.ConnectionState
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material3.Switch
 
 @Composable
 fun ChatScreen(
     modifier: Modifier = Modifier,
     state: ChatUiState,
     onSendClicked: (String) -> Unit,
-    onConversationClicked: (String) -> Unit
+    onConversationClicked: (String) -> Unit,
+    onOnlineToggle: (Boolean) -> Unit
 ) {
     var inputText by remember { mutableStateOf("") }
 
@@ -47,6 +49,38 @@ fun ChatScreen(
         )
 
         Spacer(Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = if (state.isOnline) "Online (simulated)" else "Offline (simulated)",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Switch(
+                checked = state.isOnline,
+                onCheckedChange = { onOnlineToggle(it) }
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        if (!state.isOnline) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                Text(
+                    text = "No internet connection (simulated). Messages will be handled offline.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
 
         if (state.conversations.isEmpty()) {
             Text(

@@ -14,20 +14,28 @@ class ChatViewModel(
 ) : ViewModel() {
 
     private val clientId: String = UUID.randomUUID().toString() // for now; can be injected
+
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState
+
+    // TODO: Wire the send/queue logic
+    private val _isOnline = MutableStateFlow(true)
 
     init {
         viewModelScope.launch {
             repository.start(clientId)
         }
 
-        // Combine repository flows into a single UI state
+        // Combine repository flows + online flag into a single UI state
         viewModelScope.launch {
             combine(
                 repository.conversations,
-                repository.connectionState
-            ) { conversations, connection ->
+                repository.connectionState,
+                _isOnline
+            ) { conversations, connection, isOnline ->
+
+                val currState = _uiState.value
+
                 val activeId = _uiState.value.activeConversationId
                     ?: conversations.firstOrNull()?.id
 
@@ -53,7 +61,8 @@ class ChatViewModel(
                         )
                     },
                     activeConversationId = activeId,
-                    messages = activeMessages
+                    messages = activeMessages,
+                    isOnline = isOnline,
                 )
             }.collect { newState ->
                 _uiState.value = newState
@@ -69,5 +78,9 @@ class ChatViewModel(
 
     fun onConversationSelected(id: String) {
         _uiState.value = _uiState.value.copy(activeConversationId = id)
+    }
+
+    fun onOnlineToggle(isOnline: Boolean) {
+        _isOnline.value = isOnline
     }
 }

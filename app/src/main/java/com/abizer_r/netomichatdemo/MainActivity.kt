@@ -88,7 +88,8 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(innerPadding),
                         state = state,
                         onSendClicked = viewModel::onSendMessage,
-                        onConversationClicked = viewModel::onConversationSelected
+                        onConversationClicked = viewModel::onConversationSelected,
+                        onOnlineToggle = viewModel::onOnlineToggle
                     )
                 }
             }

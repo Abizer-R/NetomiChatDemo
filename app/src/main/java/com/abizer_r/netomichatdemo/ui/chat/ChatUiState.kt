@@ -7,6 +7,7 @@ data class ChatUiState(
     val conversations: List<ChatConversationItemUi> = emptyList(),
     val activeConversationId: String? = null,
     val messages: List<ChatMessageItemUi> = emptyList(),
+    val isOnline: Boolean = true,          // simulated online/offline flag
     val isLoading: Boolean = false,
     val errorMessage: String? = null
 )
