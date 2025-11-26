@@ -145,6 +145,15 @@ class ChatRepositoryImpl(
         }
     }
 
+    override suspend fun markConversationRead(conversationId: String) {
+        val existing = conversationMap[conversationId] ?: return
+        if (existing.unreadCount == 0) return
+
+        conversationMap[conversationId] = existing.copy(unreadCount = 0)
+        _conversations.value = conversationMap.values.toList()
+    }
+
+
 
     private suspend fun retryPending() {
         // Iterate over a copy to avoid concurrent modification issues
@@ -161,6 +170,7 @@ class ChatRepositoryImpl(
                 val botPayload = buildBotReply(item.payload)
                 socketClient.send(botPayload)
             } catch (t: Throwable) {
+                // TODO: we can add a backoff here (try 3 times before giving up)
                 // Mark as failed; keep in queue for future attempts
                 updateMessageStatus(
                     conversationId = item.payload.conversationId,
@@ -192,6 +202,10 @@ class ChatRepositoryImpl(
             status = MessageStatus.SENT
         )
 
+        // unread logic:
+        val baseUnread = existingConv?.unreadCount ?: 0
+        val newUnread = if (isMine) baseUnread else baseUnread + 1
+
         val newMessages = if (existingIndex >= 0) {
             existingMessages.toMutableList().apply {
                 this[existingIndex] = incoming
@@ -202,13 +216,15 @@ class ChatRepositoryImpl(
 
         val updatedConversation = existingConv?.copy(
             lastMessage = incoming,
-            messages = newMessages
+            messages = newMessages,
+            unreadCount = newUnread
         )
             ?: ChatConversation(
                 id = payload.conversationId,
                 title = "Bot chat", // can be customized later
                 lastMessage = incoming,
-                messages = newMessages
+                messages = newMessages,
+                unreadCount = if (isMine) 0 else 1
             )
 
         conversationMap[payload.conversationId] = updatedConversation
@@ -228,15 +244,20 @@ class ChatRepositoryImpl(
             existingMessages + message
         }
 
+        // For local messages, we do NOT increment unreadCount
+        val unread = existingConv?.unreadCount ?: 0
+
         val updatedConversation = existingConv?.copy(
             lastMessage = message,
-            messages = newMessages
+            messages = newMessages,
+            unreadCount = unread
         )
             ?: ChatConversation(
                 id = message.conversationId,
                 title = "Bot chat",
                 lastMessage = message,
-                messages = newMessages
+                messages = newMessages,
+                unreadCount = unread
             )
 
         conversationMap[message.conversationId] = updatedConversation

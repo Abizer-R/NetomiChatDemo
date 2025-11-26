@@ -16,7 +16,8 @@ data class ChatUiState(
 data class ChatConversationItemUi(
     val id: String,
     val title: String,
-    val lastMessagePreview: String
+    val lastMessagePreview: String,
+    val unreadCount: Int
 )
 
 data class ChatMessageItemUi(

@@ -68,7 +68,8 @@ class ChatViewModel(
                         ChatConversationItemUi(
                             id = conv.id,
                             title = conv.title,
-                            lastMessagePreview = conv.lastMessage?.text.orEmpty()
+                            lastMessagePreview = conv.lastMessage?.text.orEmpty(),
+                            unreadCount = conv.unreadCount
                         )
                     },
                     activeConversationId = activeId,

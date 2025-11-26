@@ -131,17 +131,36 @@ fun ChatScreen(
                         .heightIn(max = 160.dp)
                 ) {
                     items(state.conversations, key = { it.id }) { conv ->
-                        Column(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onConversationClicked(conv.id) }
-                                .padding(vertical = 4.dp)
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(conv.title, style = MaterialTheme.typography.titleMedium)
-                            if (conv.lastMessagePreview.isNotBlank()) {
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 Text(
-                                    conv.lastMessagePreview,
-                                    style = MaterialTheme.typography.bodySmall
+                                    conv.title,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                if (conv.lastMessagePreview.isNotBlank()) {
+                                    Text(
+                                        conv.lastMessagePreview,
+                                        style = if (conv.unreadCount > 0)
+                                            MaterialTheme.typography.bodyMedium
+                                        else
+                                            MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+
+                            if (conv.unreadCount > 0) {
+                                Text(
+                                    text = "${conv.unreadCount}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }

@@ -15,4 +15,6 @@ interface ChatRepository {
     suspend fun sendUserMessage(text: String, clientId: String)
 
     fun onNetworkStatusChanged(isOnline: Boolean)
+
+    suspend fun markConversationRead(conversationId: String)
 }
