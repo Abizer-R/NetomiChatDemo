@@ -97,7 +97,7 @@ class MainActivity : ComponentActivity() {
         // Event: Channel connected
         joinedChannel.listen("system:connected", object : PieSocketEventListener() {
             override fun handleEvent(event: PieSocketEvent) {
-                Log.d("test", "system:connected: ${event.data}")
+                Log.d("test", "system:connected: $event")
                 runOnUiThread {
                     onStatusChange("Connected")
                 }
@@ -107,35 +107,35 @@ class MainActivity : ComponentActivity() {
         // Event: A user has joined
         joinedChannel.listen("system:member_joined", object : PieSocketEventListener() {
             override fun handleEvent(event: PieSocketEvent) {
-                Log.d("test", "system:member_joined: ${event.data}")
+                Log.d("test", "system:member_joined: $event")
             }
         })
 
         // Event: A user has left
         joinedChannel.listen("system:member_left", object : PieSocketEventListener() {
             override fun handleEvent(event: PieSocketEvent) {
-                Log.d("test", "system:member_left: ${event.data}")
+                Log.d("test", "system:member_left: $event")
             }
         })
 
         // Event: Message arrived on socket connection
         joinedChannel.listen("system:message", object : PieSocketEventListener() {
             override fun handleEvent(event: PieSocketEvent) {
-                Log.d("test", "system:message: ${event.data}")
+                Log.d("test", "system:message: $event")
             }
         })
 
         // Event: An error occurred
         joinedChannel.listen("system:error", object : PieSocketEventListener() {
             override fun handleEvent(event: PieSocketEvent) {
-                Log.d("test", "system:error: ${event.data}")
+                Log.d("test", "system:error: $event")
             }
         })
 
         // Event: WebSocekt closed
         joinedChannel.listen("system:closed", object : PieSocketEventListener() {
             override fun handleEvent(event: PieSocketEvent) {
-                Log.d("test", "system:closed: ${event.data}")
+                Log.d("test", "system:closed: $event")
                 runOnUiThread {
                     onStatusChange("Connection Closed")
                 }
@@ -145,16 +145,16 @@ class MainActivity : ComponentActivity() {
         // All Events
         joinedChannel.listen("*", object : PieSocketEventListener() {
             override fun handleEvent(event: PieSocketEvent) {
-                Log.i("test", "all events: ${event.data}")
+                Log.i("test", "all events: $event")
             }
         })
 
         // Our own event for sending messages
         joinedChannel.listen("new-message", object : PieSocketEventListener() {
             override fun handleEvent(event: PieSocketEvent) {
-                Log.d("test", "system:message: ${event.data}")
+                Log.d("test", "system:message: $event")
                 runOnUiThread {
-                    onMessage("INCOMING: ${event.data}")
+                    onMessage("INCOMING: $event")
                 }
             }
         })

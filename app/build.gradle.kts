@@ -58,5 +58,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     implementation("com.piesocket:channels-sdk:1.0.5")
+    implementation("com.google.android.material:material:1.12.0")
 
 }
