@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.abizer_r.netomichatdemo"
-        minSdk = 24
+        minSdk = 27 // piesocket requires min sdk level 27
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
