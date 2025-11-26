@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -76,12 +78,12 @@ class ChatViewModel(
             }.collect { newState ->
                 _uiState.value = newState
             }
+        }
 
-            // Collect repository error messages and convert to UiEvents
-            viewModelScope.launch {
-                repository.errorEvents.collect { msg ->
-                    _events.emit(UiEvent.ShowSnackbar(msg))
-                }
+        // Collect repository error messages and convert to UiEvents
+        viewModelScope.launch {
+            repository.errorEvents.collectLatest { msg ->
+                _events.emit(UiEvent.ShowSnackbar(msg))
             }
         }
     }
