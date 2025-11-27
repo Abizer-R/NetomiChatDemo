@@ -25,6 +25,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.graphics.Color
 import com.abizer_r.netomichatdemo.domain.model.MessageStatus
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
@@ -249,15 +250,24 @@ fun ChatDetailScreen(
                     Text("$prefix ${msg.text}", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(4.dp))
 
-                    val statusSuffix = when (msg.status) {
-                        MessageStatus.SENDING -> "(sending…)"
-                        MessageStatus.QUEUED -> "(queued)"
-                        MessageStatus.FAILED -> "(failed)"
-                        MessageStatus.SENT -> "(sent)"
+                    if (msg.isBot)  return@items
+
+                    val (statusSuffix, statusColor) = when (msg.status) {
+                        MessageStatus.SENDING -> {
+                            Pair("(sending…)", Color.LightGray)
+                        }
+                        MessageStatus.QUEUED -> {
+                            Pair("(queued)", Color.Gray)
+                        }
+                        MessageStatus.FAILED -> {
+                            Pair("(failed)", Color.Red)
+                        }
+                        MessageStatus.SENT -> {
+                            Pair("(sent)", Color.Green)
+                        }
                     }
 
-                    // TODO: use different color for different status
-                    Text(statusSuffix, style = MaterialTheme.typography.bodySmall)
+                    Text(statusSuffix, style = MaterialTheme.typography.bodySmall, color = statusColor)
                     Spacer(Modifier.height(4.dp))
                 }
             }

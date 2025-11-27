@@ -194,7 +194,7 @@ class ChatRepositoryImpl(
 
         val conv = ChatConversation(
             id = conversationId,
-            title = "ChatId: $conversationId",
+            title = randomTitle(),
             lastMessage = null,
             messages = emptyList(),
             unreadCount = 0
@@ -202,6 +202,20 @@ class ChatRepositoryImpl(
 
         conversationMap[conversationId] = conv
         _conversations.value = conversationMap.values.toList()
+    }
+
+    private fun randomTitle(): String {
+        val titles = listOf(
+            "Sales Bot",
+            "Support Bot",
+            "Developer Bot",
+            "Gamer Bot",
+            "Designer Bot",
+            "Gym Bot",
+            "Movie Bot",
+            "Music Bot"
+        )
+        return titles.random()
     }
 
 
@@ -244,7 +258,7 @@ class ChatRepositoryImpl(
         )
             ?: ChatConversation(
                 id = payload.conversationId,
-                title = "ChatId: ${payload.conversationId}",
+                title = randomTitle(),
                 lastMessage = incoming,
                 messages = newMessages,
                 unreadCount = if (isMine) 0 else 1
@@ -277,7 +291,7 @@ class ChatRepositoryImpl(
         )
             ?: ChatConversation(
                 id = message.conversationId,
-                title = "ChatId: ${message.conversationId}",
+                title = randomTitle(),
                 lastMessage = message,
                 messages = newMessages,
                 unreadCount = unread
