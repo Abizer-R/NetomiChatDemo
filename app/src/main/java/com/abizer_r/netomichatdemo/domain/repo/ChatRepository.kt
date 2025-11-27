@@ -12,9 +12,11 @@ interface ChatRepository {
     val errorEvents: Flow<String>
 
     suspend fun start(clientId: String)
-    suspend fun sendUserMessage(text: String, clientId: String)
+    suspend fun sendUserMessage(text: String, conversationId: String, clientId: String)
 
     fun onNetworkStatusChanged(isOnline: Boolean)
 
     suspend fun markConversationRead(conversationId: String)
+
+    suspend fun createConversation(conversationId: String)
 }

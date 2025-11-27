@@ -73,7 +73,11 @@ class ChatRepositoryImpl(
         }
     }
 
-    override suspend fun sendUserMessage(text: String, clientId: String) {
+    override suspend fun sendUserMessage(
+        text: String,
+        conversationId: String,
+        clientId: String
+    ) {
         if (text.isBlank()) return
 
         val now = System.currentTimeMillis()
@@ -81,7 +85,7 @@ class ChatRepositoryImpl(
         // 1) user message payload
         val userPayload = ChatPayload(
             type = "user_message",
-            conversationId = CHANNEL_ID,
+            conversationId = conversationId,
             text = text,
             senderId = clientId,
             timestamp = now
@@ -182,6 +186,25 @@ class ChatRepositoryImpl(
         }
     }
 
+    override suspend fun createConversation(conversationId: String, ) {
+        // If it already exists, don’t recreate
+        if (conversationMap.containsKey(conversationId)) return
+
+        val index = conversationMap.size + 1
+
+        val conv = ChatConversation(
+            id = conversationId,
+            title = "ChatId: $conversationId",
+            lastMessage = null,
+            messages = emptyList(),
+            unreadCount = 0
+        )
+
+        conversationMap[conversationId] = conv
+        _conversations.value = conversationMap.values.toList()
+    }
+
+
     private fun handleIncomingPayload(payload: ChatPayload, clientId: String) {
         val isBot = payload.senderId == BOT_ID || payload.type == "bot_message"
         val isMine = payload.senderId == clientId && !isBot
@@ -221,7 +244,7 @@ class ChatRepositoryImpl(
         )
             ?: ChatConversation(
                 id = payload.conversationId,
-                title = "Bot chat", // can be customized later
+                title = "ChatId: ${payload.conversationId}",
                 lastMessage = incoming,
                 messages = newMessages,
                 unreadCount = if (isMine) 0 else 1
@@ -254,7 +277,7 @@ class ChatRepositoryImpl(
         )
             ?: ChatConversation(
                 id = message.conversationId,
-                title = "Bot chat",
+                title = "ChatId: ${message.conversationId}",
                 lastMessage = message,
                 messages = newMessages,
                 unreadCount = unread

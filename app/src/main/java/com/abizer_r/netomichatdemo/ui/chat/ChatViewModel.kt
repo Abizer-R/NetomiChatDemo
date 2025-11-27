@@ -89,18 +89,48 @@ class ChatViewModel(
         }
     }
 
+    fun startNewChat(): String {
+        val newId = getNewConvId()
+        // first update the activeConvId so that the "combine" block gets the updated one when it gets triggered from repo
+        _uiState.value = _uiState.value.copy(activeConversationId = newId)
+        // create the conversation immediately so it appears in the list
+        viewModelScope.launch {
+            repository.createConversation(newId)
+        }
+        return newId
+    }
+
+
     fun onSendMessage(text: String) {
         viewModelScope.launch {
-            repository.sendUserMessage(text, clientId)
+            val convId = ensureActiveConversationId()
+            repository.sendUserMessage(text, convId, clientId)
         }
     }
 
     fun onConversationSelected(id: String) {
         _uiState.value = _uiState.value.copy(activeConversationId = id)
+        viewModelScope.launch {
+            repository.markConversationRead(id)
+        }
     }
 
     fun onOnlineToggle(isOnline: Boolean) {
         _isOnline.value = isOnline
         repository.onNetworkStatusChanged(isOnline)
+    }
+
+    private fun ensureActiveConversationId(): String {
+        val current = _uiState.value.activeConversationId
+        if (current != null) return current
+
+        // If none, create a new chat ID
+        val newId = getNewConvId()
+        _uiState.value = _uiState.value.copy(activeConversationId = newId)
+        return newId
+    }
+
+    private fun getNewConvId(): String {
+        return "chat-${System.currentTimeMillis()}"
     }
 }
